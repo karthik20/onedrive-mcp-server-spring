@@ -1,0 +1,22 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: onedrive-mcp-server
+  ai:
+    mcp:
+      server:
+        name: onedrive-mcp-server
+        version: 1.0.0
+        type: SYNC
+        sse-message-endpoint: /mcp/messages
+        stdio: true
+        
+logging:
+  pattern:
+    console: 
+  file:
+    name: logs/onedrive-mcp-server.log
+
+onedrive:
+    access-token: ${MICROSOFT_ONEDRIVE_ACCESS_TOKEN}
