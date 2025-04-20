@@ -172,15 +172,22 @@ docker run -p 8080:8080 -e ONEDRIVE_ACCESS_TOKEN=your-token karthik20/onedrive-m
 
 ### 1. Search Files
 Search for files in OneDrive with optional folder filtering:
-```typescript
-searchFiles(fileName: string, folder?: string): string
+```java
+public String searchFiles(String fileName, String folder)
 ```
 
 ### 2. Search Folders
 Navigate and search folder structures:
-```typescript
-searchFolderPath(folderName: string): string
+```java
+public String searchFolderPath(String folderName)
 ```
+
+### 3. List Folder Contents
+List all files and folders under a specific folder path:
+```java
+public String listFolderContents(String folderPath)
+```
+Returns a JSON array of file and folder information including names, web URLs, and paths. The folder path can be nested like 'Documents/Bills'.
 
 ## Testing
 
