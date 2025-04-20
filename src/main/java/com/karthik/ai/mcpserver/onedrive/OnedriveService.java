@@ -86,6 +86,30 @@ public class OnedriveService {
         }
     }
 
+    @Tool(description = "List all files and folders under a specific folder path in OneDrive. The folder path can be nested like 'Documents/Bills'")
+    public String listFolderContents(@ToolParam(description = "the folder path to list contents from, e.g. 'Documents' or 'Documents/Bills'") String folderPath) {
+        try {
+            String encodedPath = folderPath != null && !folderPath.isEmpty()
+                ? java.net.URLEncoder.encode(folderPath, StandardCharsets.UTF_8.toString())
+                : "";
+
+            String apiPath = encodedPath.isEmpty()
+                ? "/me/drive/root/children?$select=name,id,webUrl,file,folder,parentReference"
+                : String.format("/me/drive/root:/%s:/children?$select=name,id,webUrl,file,folder,parentReference", encodedPath);
+
+            String response = restClient.get()
+                    .uri(apiPath)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+
+            return filterFolderContents(response);
+        } catch (Exception e) {
+            return "Error listing folder contents: " + e.getMessage();
+        }
+    }
+
     private String filterMatchingFiles(String response) throws java.io.IOException {
         try {
             JsonNode root = objectMapper.readTree(response);
@@ -127,6 +151,39 @@ public class OnedriveService {
             return objectMapper.writeValueAsString(results);
         } catch (java.io.IOException e) {
             return "Error processing folder search results: " + e.getMessage();
+        }
+    }
+
+    private String filterFolderContents(String response) throws java.io.IOException {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode value = root.get("value");
+
+            List<Object> results = value != null && value.isArray()
+                    ? StreamSupport.stream(value.spliterator(), false)
+                            .map(item -> {
+                                if (item.has("folder")) {
+                                    return new FolderInfo(
+                                        item.path("name").asText(),
+                                        item.path("webUrl").asText(),
+                                        item.path("parentReference").path("path").asText(),
+                                        item.path("folder").path("childCount").asInt()
+                                    );
+                                } else {
+                                    return new FileInfo(
+                                        item.path("name").asText(),
+                                        item.path("webUrl").asText(),
+                                        item.path("file").asText(),
+                                        item.path("parentReference").path("path").asText()
+                                    );
+                                }
+                            })
+                            .collect(Collectors.toList())
+                    : List.of();
+
+            return objectMapper.writeValueAsString(results);
+        } catch (Exception e) {
+            return "Error processing folder contents: " + e.getMessage();
         }
     }
 

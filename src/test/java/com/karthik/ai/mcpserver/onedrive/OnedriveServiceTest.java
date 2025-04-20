@@ -262,4 +262,119 @@ class OnedriveServiceTest {
         assertTrue(result.contains("https://example.com/folders/special"));
         assertTrue(result.contains("2")); // childCount
     }
+
+    @Test
+    void listFolderContents_WithValidPath_Success() {
+        String expectedResponse = """
+            {
+                "value": [
+                    {
+                        "name": "resume.pdf",
+                        "webUrl": "https://example.com/resume.pdf",
+                        "file": {},
+                        "parentReference": {
+                            "path": "/drive/root:/Documents"
+                        }
+                    },
+                    {
+                        "name": "Templates",
+                        "webUrl": "https://example.com/folders/templates",
+                        "folder": {
+                            "childCount": 3
+                        },
+                        "parentReference": {
+                            "path": "/drive/root:/Documents"
+                        }
+                    }
+                ]
+            }
+            """;
+        when(responseSpec.body(String.class)).thenReturn(expectedResponse);
+
+        String result = onedriveService.listFolderContents("Documents");
+
+        assertTrue(result.contains("resume.pdf"));
+        assertTrue(result.contains("Templates"));
+        assertTrue(result.contains("https://example.com/resume.pdf"));
+        assertTrue(result.contains("https://example.com/folders/templates"));
+        assertTrue(result.contains("/drive/root:/Documents"));
+        assertTrue(result.contains("3")); // childCount for Templates folder
+    }
+
+    @Test
+    void listFolderContents_WithNestedPath_Success() {
+        String expectedResponse = """
+            {
+                "value": [
+                    {
+                        "name": "technical.pdf",
+                        "webUrl": "https://example.com/technical.pdf",
+                        "file": {},
+                        "parentReference": {
+                            "path": "/drive/root:/Documents/Resume"
+                        }
+                    }
+                ]
+            }
+            """;
+        when(responseSpec.body(String.class)).thenReturn(expectedResponse);
+
+        String result = onedriveService.listFolderContents("Documents/Resume");
+
+        assertTrue(result.contains("technical.pdf"));
+        assertTrue(result.contains("https://example.com/technical.pdf"));
+        assertTrue(result.contains("/drive/root:/Documents/Resume"));
+    }
+
+    @Test
+    void listFolderContents_WithEmptyFolder_ReturnsEmptyList() {
+        String expectedResponse = """
+            {
+                "value": []
+            }
+            """;
+        when(responseSpec.body(String.class)).thenReturn(expectedResponse);
+
+        String result = onedriveService.listFolderContents("EmptyFolder");
+
+        assertEquals("[]", result);
+    }
+
+    @Test
+    void listFolderContents_WithRootPath_Success() {
+        String expectedResponse = """
+            {
+                "value": [
+                    {
+                        "name": "Documents",
+                        "webUrl": "https://example.com/folders/documents",
+                        "folder": {
+                            "childCount": 5
+                        },
+                        "parentReference": {
+                            "path": "/drive/root:"
+                        }
+                    }
+                ]
+            }
+            """;
+        when(responseSpec.body(String.class)).thenReturn(expectedResponse);
+
+        String result = onedriveService.listFolderContents(null);
+
+        assertTrue(result.contains("Documents"));
+        assertTrue(result.contains("https://example.com/folders/documents"));
+        assertTrue(result.contains("/drive/root:"));
+        assertTrue(result.contains("5")); // childCount
+    }
+
+    @Test
+    void listFolderContents_WithApiError_ReturnsErrorMessage() {
+        when(responseSpec.body(String.class)).thenThrow(new RuntimeException("API Error"));
+
+        String result = onedriveService.listFolderContents("Documents");
+
+        assertTrue(result.contains("Error listing folder contents:"));
+        assertTrue(result.contains("API Error"));
+    }
 }
