@@ -64,7 +64,29 @@ public class OnedriveService {
         }
     }
 
-    private String filterMatchingFiles(String response) {
+    @Tool(description = "Search for folder path in OneDrive using folder name and returns folder details including path")
+    public String searchFolderPath(@ToolParam(description = "the folder name to search for") String folderName) {
+        try {
+            // Microsoft Graph API requires single quotes around the search term
+            String searchQuery = String.format("'%s'", folderName);
+            String apiPath = String.format("/me/drive/root/search(q=%s)?$filter=folder ne null&$select=name,id,webUrl,folder,parentReference", searchQuery);
+
+            String response = restClient.get()
+                    .uri(apiPath)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+
+            return filterMatchingFolders(response);
+        } catch (java.io.IOException e) {
+            return "Error processing response: " + e.getMessage();
+        } catch (RuntimeException e) {
+            return "Error searching folders: " + e.getMessage();
+        }
+    }
+
+    private String filterMatchingFiles(String response) throws java.io.IOException {
         try {
             JsonNode root = objectMapper.readTree(response);
             JsonNode value = root.get("value");
@@ -86,7 +108,33 @@ public class OnedriveService {
         }
     }
 
+    private String filterMatchingFolders(String response) throws java.io.IOException {
+        try {
+            JsonNode root = objectMapper.readTree(response);
+            JsonNode value = root.get("value");
+
+            List<FolderInfo> results = value != null && value.isArray()
+                    ? StreamSupport.stream(value.spliterator(), false)
+                            .map(item -> new FolderInfo(
+                                    item.path("name").asText(),
+                                    item.path("webUrl").asText(),
+                                    item.path("parentReference").path("path").asText(),
+                                    item.path("folder").path("childCount").asInt()
+                                    ))
+                            .collect(Collectors.toList())
+                    : List.of();
+
+            return objectMapper.writeValueAsString(results);
+        } catch (java.io.IOException e) {
+            return "Error processing folder search results: " + e.getMessage();
+        }
+    }
+
     private record FileInfo(String name, String webUrl, String fileType, String path) {
+        
+    }
+
+    private record FolderInfo(String name, String webUrl, String path, int childCount) {
         
     }
 }
